@@ -288,21 +288,16 @@ void translate_icache_sync() {
   check_pc_region(pc);                                                        \
   opcode = address32(pc_address_block, (pc & 0x7FFF));                        \
   condition = block_data[block_data_position].condition;                      \
+  u32 has_condition_header = 0;                                               \
                                                                               \
   if((condition != last_condition) || (condition >= 0x20))                    \
   {                                                                           \
-    if((last_condition & 0x0F) != 0x0E)                                       \
-    {                                                                         \
-      generate_branch_patch_conditional(backpatch_address, translation_ptr);  \
-    }                                                                         \
-                                                                              \
-    last_condition = condition;                                               \
-                                                                              \
     condition &= 0x0F;                                                        \
                                                                               \
     if(condition != 0x0E)                                                     \
     {                                                                         \
       arm_conditional_block_header();                                         \
+      has_condition_header = 1;                                               \
     }                                                                         \
   }                                                                           \
   emit_trace_arm_instruction(pc);                                             \
@@ -1741,6 +1736,10 @@ void translate_icache_sync() {
     }                                                                         \
   }                                                                           \
                                                                               \
+  if(has_condition_header)                                                    \
+  {                                                                           \
+    generate_branch_patch_conditional(backpatch_address, translation_ptr);    \
+  }                                                                           \
   pc += 4                                                                     \
 
 #define arm_flag_status()                                                     \
@@ -2887,11 +2886,11 @@ u8 function_cc *block_lookup_address_thumb(u32 pc)
 }                                                                             \
 
 #define MAX_BLOCK_SIZE 8192
-#define arm_MAX_BLOCK_SIZE 48
-#define thumb_MAX_BLOCK_SIZE 2048
+#define arm_MAX_BLOCK_SIZE 8192
+#define thumb_MAX_BLOCK_SIZE 8192
 
 #define MAX_EXITS      256
-#define arm_MAX_EXITS      2
+#define arm_MAX_EXITS      256
 #define thumb_MAX_EXITS      256
 
 block_data_type block_data[MAX_BLOCK_SIZE];
