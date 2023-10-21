@@ -440,7 +440,27 @@ u32 arm_disect_imm_32bit(u32 imm, u32 *stores, u32 *rotations)
 #define generate_branch_idle_eliminate(writeback_location, new_pc, mode)      \
   generate_function_far_call(armfn_gbaup_idle_##mode);                        \
   write32(new_pc);                                                            \
-  generate_branch_filler(ARMCOND_AL, writeback_location)                      \
+  /* This uses variables from cpu.c's translate_block_builder /               \
+   * translate_block_arm / translate_block_thumb functions. Basically,        \
+   * if we're emitting a jump from a read-only area (BIOS or ROM) and         \
+   * the branch target is in a read-only area (BIOS or ROM), we can link      \
+   * statically and backpatch all we like, but if we're emitting a branch     \
+   * towards a basic block that's in writable (GBA) memory, that block is     \
+   * OFF LIMITS and that branch must be issued indirectly and resolved at     \
+   * branch time. This allows us to efficiently clear SOME of the RAM         \
+   * code cache after SOME of it has been modified. Ideally, that's one       \
+   * basic block. */                                                          \
+  if ((new_pc >= block_start_pc && new_pc < block_end_pc)                     \
+   || (new_pc >= 0x08000000 && new_pc < 0x0E000000) /* Game Pak ROM */        \
+   || (new_pc <  0x00004000) /* BIOS */)                                      \
+  {                                                                           \
+   generate_branch_filler(ARMCOND_AL, writeback_location);                    \
+  }                                                                           \
+  else                                                                        \
+  {                                                                           \
+    arm_load_imm_32bit(reg_a0, new_pc);                                       \
+    generate_indirect_branch_no_cycle_update(mode); 		              \
+  }                                                                           \
 
 #define generate_branch_update(writeback_location, new_pc, mode)              \
   ARM_MOV_REG_IMMSHIFT(0, reg_a0, reg_cycles, ARMSHIFT_LSR, 31);              \
@@ -448,7 +468,28 @@ u32 arm_disect_imm_32bit(u32 imm, u32 *stores, u32 *rotations)
   ARM_ADD_REG_IMMSHIFT(0, ARMREG_PC, ARMREG_PC, reg_a0, ARMSHIFT_LSL, 3);     \
   write32(new_pc);                                                            \
   generate_function_far_call(armfn_gbaup_##mode);   /* 2 instructions */      \
-  generate_branch_filler(ARMCOND_AL, writeback_location)                      \
+  /* This uses variables from cpu.c's translate_block_builder /               \
+   * translate_block_arm / translate_block_thumb functions. Basically,        \
+   * if we're emitting a jump from a read-only area (BIOS or ROM) and         \
+   * the branch target is in a read-only area (BIOS or ROM), we can link      \
+   * statically and backpatch all we like, but if we're emitting a branch     \
+   * towards a basic block that's in writable (GBA) memory, that block is     \
+   * OFF LIMITS and that branch must be issued indirectly and resolved at     \
+   * branch time. This allows us to efficiently clear SOME of the RAM         \
+   * code cache after SOME of it has been modified. Ideally, that's one       \
+   * basic block. */                                                          \
+  if ((new_pc >= block_start_pc && new_pc < block_end_pc)                     \
+   || (new_pc >= 0x08000000 && new_pc < 0x0E000000) /* Game Pak ROM */        \
+   || (new_pc <  0x00004000) /* BIOS */)                                      \
+  {                                                                           \
+   generate_branch_filler(ARMCOND_AL, writeback_location);                    \
+  }                                                                           \
+  else                                                                        \
+  {                                                                           \
+    arm_load_imm_32bit(reg_a0, new_pc);                                           \
+    generate_indirect_branch_no_cycle_update(mode); 		              \
+  }                                                                           \
+
 
 
 #define generate_branch_no_cycle_update(writeback_location, new_pc, mode)     \
