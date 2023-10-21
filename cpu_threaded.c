@@ -2887,15 +2887,14 @@ u8 function_cc *block_lookup_address_thumb(u32 pc)
 }                                                                             \
 
 #define MAX_BLOCK_SIZE 8192
-#define arm_MAX_BLOCK_SIZE 128
-#define thumb_MAX_BLOCK_SIZE 8192
+#define arm_MAX_BLOCK_SIZE 48
+#define thumb_MAX_BLOCK_SIZE 2048
 
 #define MAX_EXITS      256
 #define arm_MAX_EXITS      2
 #define thumb_MAX_EXITS      256
 
 block_data_type block_data[MAX_BLOCK_SIZE];
-block_exit_type block_exits[MAX_EXITS];
 
 #define smc_write_arm_yes() {                                                 \
   intptr_t offset = (pc < 0x03000000) ? 0x40000 : -0x8000;                    \
@@ -3001,7 +3000,8 @@ static s32 BinarySearch(u32* Array, u32 Value, u32 Size)
         __label__ no_direct_branch;                                           \
         type##_branch_target();                                               \
         block_exits[block_exit_position].branch_target = branch_target;       \
-        sorted_branch_count = InsertUniqueSorted(branch_targets_sorted,       \
+	if(!ram_region)							      \
+          sorted_branch_count = InsertUniqueSorted(branch_targets_sorted,     \
           branch_target, sorted_branch_count);                                \
         block_exit_position++;                                                \
                                                                               \
@@ -3015,8 +3015,9 @@ static s32 BinarySearch(u32* Array, u32 Value, u32 Size)
       if(type##_opcode_swi)                                                   \
       {                                                                       \
         block_exits[block_exit_position].branch_target = 0x00000008;          \
+	if(!ram_region)							      \
         sorted_branch_count = InsertUniqueSorted(branch_targets_sorted,       \
-          branch_target, sorted_branch_count);                                \
+          0x00000008, sorted_branch_count);                                \
         block_exit_position++;                                                \
       }                                                                       \
                                                                               \
@@ -3029,7 +3030,7 @@ static s32 BinarySearch(u32* Array, u32 Value, u32 Size)
            if so don't end the block. For efficiency, but to also keep the    \
            correct order of the scanned branches for code emission, this is   \
            using a separate sorted array with unique branch_targets. */       \
-        if (BinarySearch(branch_targets_sorted, block_end_pc,                 \
+        if (ram_region || BinarySearch(branch_targets_sorted, block_end_pc,   \
           sorted_branch_count) == -1)                                         \
           continue_block = 0;                                                 \
       }                                                                       \
@@ -3100,7 +3101,7 @@ bool translate_block_arm(u32 pc, bool ram_region)
   u8 *translation_cache_limit = NULL;
   s32 i;
   u32 flag_status;
-  block_exit_type external_block_exits[MAX_EXITS];
+  block_exit_type block_exits[MAX_EXITS];
   generate_block_extra_vars_arm();
   arm_fix_pc();
 
@@ -3203,7 +3204,8 @@ bool translate_block_arm(u32 pc, bool ram_region)
 
   /* Unconditionally generate translation targets. In case we hit one or
      in the unlikely case that block was too big (and not finalized) */
-  generate_translation_gate(arm);
+  //if (translation_gate_required)
+    generate_translation_gate(arm);
 
   for(i = 0; i < block_exit_position; i++)
   {
@@ -3221,12 +3223,23 @@ bool translate_block_arm(u32 pc, bool ram_region)
     }
     else
     {
-      /* External branch, save for later */
-      external_block_exits[external_block_exit_position].branch_target =
-       branch_target;
-      external_block_exits[external_block_exit_position].branch_source =
-       block_exits[i].branch_source;
+      /* This branch exits the basic block. If the branch target is in a      
+       * read-only code area (the BIOS or the Game Pak ROM), we can link the  
+       * block statically below. THIS BEHAVIOUR NEEDS TO BE DUPLICATED IN THE 
+       * EMITTER. Please see your emitter's generate_branch_no_cycle_update   
+       * macro for more information. */                                       
+      if (branch_target < 0x00004000 /* BIOS */                               
+      || (branch_target >= 0x08000000 && branch_target < 0x0E000000))         
+     {                                                                       
+       /* External branch, save for later. Simply compact the external         
+       * exits to the beginning of the same array. */                         
+      if (i != external_block_exit_position)                                  
+      {                                                                       
+        memcpy(&block_exits[external_block_exit_position], &block_exits[i],   
+          sizeof(block_exit_type));                                           
+      }                                                                       
       external_block_exit_position++;
+     }
     }
   }
 
@@ -3237,7 +3250,7 @@ bool translate_block_arm(u32 pc, bool ram_region)
 
   for(i = 0; i < external_block_exit_position; i++)
   {
-    branch_target = external_block_exits[i].branch_target;
+    branch_target = block_exits[i].branch_target;
     if(branch_target == 0x00000008)
       translation_target = bios_swi_entrypoint;
     else
@@ -3245,7 +3258,7 @@ bool translate_block_arm(u32 pc, bool ram_region)
     if (!translation_target)
       return false;
     generate_branch_patch_unconditional(
-      external_block_exits[i].branch_source, translation_target);
+      block_exits[i].branch_source, translation_target);
   }
   return true;
 }
@@ -3271,7 +3284,7 @@ bool translate_block_thumb(u32 pc, bool ram_region)
   u8 *translation_cache_limit = NULL;
   s32 i;
   u32 flag_status;
-  block_exit_type external_block_exits[MAX_EXITS];
+  block_exit_type block_exits[MAX_EXITS];
   generate_block_extra_vars_thumb();
   thumb_fix_pc();
 
@@ -3365,9 +3378,9 @@ bool translate_block_thumb(u32 pc, bool ram_region)
     }
   }
 
-  /* Conditionally generate translation targets. In case we hit one or
+  /* Unconditionally generate translation targets. In case we hit one or
      in the unlikely case that block was too big (and not finalized) */
-  if (translation_gate_required)                                              
+  //if (translation_gate_required)                                              
     generate_translation_gate(thumb);
 
   for(i = 0; i < block_exit_position; i++)
@@ -3386,12 +3399,23 @@ bool translate_block_thumb(u32 pc, bool ram_region)
     }
     else
     {
-      /* External branch, save for later */
-      external_block_exits[external_block_exit_position].branch_target =
-       branch_target;
-      external_block_exits[external_block_exit_position].branch_source =
-       block_exits[i].branch_source;
+      /* This branch exits the basic block. If the branch target is in a      
+       * read-only code area (the BIOS or the Game Pak ROM), we can link the  
+       * block statically below. THIS BEHAVIOUR NEEDS TO BE DUPLICATED IN THE 
+       * EMITTER. Please see your emitter's generate_branch_no_cycle_update   
+       * macro for more information. */                                       
+      if (branch_target < 0x00004000 /* BIOS */                               
+      || (branch_target >= 0x08000000 && branch_target < 0x0E000000))         
+     {                                                                       
+       /* External branch, save for later. Simply compact the external         
+       * exits to the beginning of the same array. */                         
+      if (i != external_block_exit_position)                                  
+      {                                                                       
+        memcpy(&block_exits[external_block_exit_position], &block_exits[i],   
+          sizeof(block_exit_type));                                           
+      }                                                                       
       external_block_exit_position++;
+     }
     }
   }
 
@@ -3402,7 +3426,7 @@ bool translate_block_thumb(u32 pc, bool ram_region)
 
   for(i = 0; i < external_block_exit_position; i++)
   {
-    branch_target = external_block_exits[i].branch_target;
+    branch_target = block_exits[i].branch_target;
     if(branch_target == 0x00000008)
       translation_target = bios_swi_entrypoint;
     else
@@ -3410,7 +3434,7 @@ bool translate_block_thumb(u32 pc, bool ram_region)
     if (!translation_target)
       return false;
     generate_branch_patch_unconditional(
-      external_block_exits[i].branch_source, translation_target);
+      block_exits[i].branch_source, translation_target);
   }
   return true;
 }
@@ -3498,4 +3522,3 @@ void flush_dynarec_caches(void)
   iwram_code_max = 0x8000;
   flush_translation_cache_ram();
 }
-
