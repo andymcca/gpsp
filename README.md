@@ -1,8 +1,11 @@
 
 lr-gpsp-amcc (forked from gpSP for libretro)
-=================
+============================================
 
 This is a fork-of-a-fork of gpsp for libretro frontends (like Retroarch).
+
+I'm adding features here and also raising PRs for visibilty on the main
+libretro gpsp repo.  
 
 The current maintainer/main contributor of https://github.com/libretro/gpsp/ 
 is davidgfnet (check out the repo at https://github.com/davidgfnet/gpsp). 
@@ -20,9 +23,18 @@ the main repo in their present form!  These currently include -
  - STR instruction value check before write in the ARM dynarec (saves a few SMC
    flushes here and there)
  - Green Swap support (not used in commercial games, but in some homebrew/demos)
+ - Fix for the audio in CT Special Forces 3 by partially reverting an earlier
+   commit (not sure if this breaks anything else)
 
-gpsp Feature list
-=================
+Other things I hope/want to do here -
+
+ - Choose between old/new video renderer - David rewrote the entire renderer last
+   year and did a fantastic job in also implementing other features like Mosaic
+   which were previously unsupported.  In some instances the old renderer can be
+   a bit quicker so I'd like to implement a core option to switch between the two.
+
+Main gpsp Feature list
+======================
 
 gpSP features a dynamic recompiler that makes it quite fast (compared to other
 emulators at least). It supports x86/x64, ARMv6/7 and ARMv8 and MIPS (32 and 64
