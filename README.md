@@ -32,6 +32,9 @@ Other things I hope/want to do here -
    year and did a fantastic job in also implementing other features like Mosaic
    which were previously unsupported.  In some instances the old renderer can be
    a bit quicker so I'd like to implement a core option to switch between the two.
+ - Idle Loop detection - mgba does this, would be cool to implement and allow for
+   auto-detection and removal of more than one loop (currently gpsp still only
+   allows for one to be specified per game in gba_over.h).
 
 Main gpsp Feature list
 ======================
