@@ -3000,7 +3000,7 @@ block_exit_type block_exits[thumb_MAX_EXITS];
   pc &= ~0x01                                                                 \
 
 #define update_pc_limits()                                                    \
-if (ram_region) {                                                             \
+{                                                                             \
   if (pc >= 0x3000000) {                                                      \
     iwram_code_min = MIN(pc & 0x7FFF, iwram_code_min);                        \
     iwram_code_max = MAX(pc & 0x7FFF, iwram_code_max);                        \
@@ -3040,6 +3040,7 @@ bool translate_block_arm(u32 pc, bool ram_region)
     pc_address_block = load_gamepak_page(pc_region & 0x3FF);
 
   if (ram_region) {
+    update_pc_limits();
     translation_ptr = ram_translation_ptr;
     translation_cache_limit = &ram_translation_cache[
        RAM_TRANSLATION_CACHE_SIZE - TRANSLATION_CACHE_LIMIT_THRESHOLD
@@ -3095,7 +3096,6 @@ bool translate_block_arm(u32 pc, bool ram_region)
       arm_process_cheats();
     }
 
-    update_pc_limits();
     translate_arm_instruction();
     block_data_position++;
 
@@ -3155,11 +3155,13 @@ bool translate_block_arm(u32 pc, bool ram_region)
     }
   }
 
-  if (ram_region)
+  if (ram_region) {
+    update_pc_limits();
     ram_translation_ptr = translation_ptr;
-  else
+  } else {
     rom_translation_ptr = translation_ptr;
-
+  }
+  
   for(i = 0; i < external_block_exit_position; i++)
   {
     branch_target = external_block_exits[i].branch_target;
@@ -3204,6 +3206,7 @@ bool translate_block_thumb(u32 pc, bool ram_region)
     pc_address_block = load_gamepak_page(pc_region & 0x3FF);
 
   if (ram_region) {
+    update_pc_limits();
     translation_ptr = ram_translation_ptr;
     translation_cache_limit = &ram_translation_cache[
        RAM_TRANSLATION_CACHE_SIZE - TRANSLATION_CACHE_LIMIT_THRESHOLD
@@ -3256,7 +3259,6 @@ bool translate_block_thumb(u32 pc, bool ram_region)
       thumb_process_cheats();
     }
 
-    update_pc_limits();
     translate_thumb_instruction();
     block_data_position++;
 
@@ -3312,10 +3314,12 @@ bool translate_block_thumb(u32 pc, bool ram_region)
     }
   }
 
-  if (ram_region)
+if (ram_region) {
+    update_pc_limits();
     ram_translation_ptr = translation_ptr;
-  else
+  } else {
     rom_translation_ptr = translation_ptr;
+  }
 
   for(i = 0; i < external_block_exit_position; i++)
   {
