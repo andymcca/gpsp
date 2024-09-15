@@ -1,16 +1,28 @@
 
-gpSP for libretro
+lr-gpsp-amcc (forked from gpSP for libretro)
 =================
 
-This is a fork of notaz's gpSP (https://github.com/notaz/gpsp) for libretro
-frontends (like Retroarch). Check the original_readme.txt file for more info.
+This is a fork-of-a-fork of gpsp for libretro frontends (like Retroarch).
 
-The current maintainer/main contributor is davidgfnet (check out the repo at
-https://github.com/davidgfnet/gpsp). This version has a bunch of fixes and
-features.
+The current maintainer/main contributor of https://github.com/libretro/gpsp/ 
+is davidgfnet (check out the repo at https://github.com/davidgfnet/gpsp). 
+His version has a bunch of fixes and features, and my fork here just builds on
+that with a few of my experimental bits which are unlikely to be committed to
+the main repo in their present form!  These currently include -
 
-Feature list
-============
+ - Partial support for OAM Order Hijacking (fixes display issues in Golden Sun 1/2,
+   Zelda Minish Cap and others)
+ - Checking for DMA/IRQ more frequently during scanline render (fixes display issues
+   in Sims 2, Monster House and Teen Titans)
+ - Smaller blocks/exits for ARM in the Dynarec (this gives a general speed up in
+   Camelot games such as Mario Tennis and Mario Golf)
+ - Dynamic Translation Gates (auto-detected and added whilst games are running)
+ - STR instruction value check before write in the ARM dynarec (saves a few SMC
+   flushes here and there)
+ - Green Swap support (not used in commercial games, but in some homebrew/demos)
+
+gpsp Feature list
+=================
 
 gpSP features a dynamic recompiler that makes it quite fast (compared to other
 emulators at least). It supports x86/x64, ARMv6/7 and ARMv8 and MIPS (32 and 64
@@ -33,17 +45,5 @@ Many new features (compared to the original release) are:
  - Better audio (fixed many audio related bugs).
  - Ships an opensource BIOS replacement,we recommend using the original though.
 
-Planned features (aka the TODO list)
-====================================
-
-Some features I'd like to see (in loose priority order):
-
- - GBA link emulation (for some games, perhaps with patches).
- - Improve RFU (Wireless Adapter) emulation through research.
- - Bringing back the native UI for PC, PSP and perhaps PS2/3DS/Wii.
- - A native UI with Multiplayer support for portable devices with wifi support.
- - A better BIOS emulation and perhaps a newer better open BIOS.
- - Dynarec rewrite: make it easier to add new drcs and share more code.
- - Adding some funny DRCs like PowerPC or SH4.
 
 
