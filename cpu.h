@@ -156,7 +156,7 @@ extern u8 ram_translation_cache[RAM_TRANSLATION_CACHE_SIZE];
 extern u8 *rom_translation_ptr;
 extern u8 *ram_translation_ptr;
 
-#define MAX_TRANSLATION_GATES 8
+#define MAX_TRANSLATION_GATES 16
 
 extern u32 idle_loop_target_pc;
 extern u32 translation_gate_targets;
