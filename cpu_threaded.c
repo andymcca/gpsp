@@ -3350,6 +3350,63 @@ void flush_translation_cache_ram(void)
    flush_ram_count, reg[REG_PC], iwram_code_min, iwram_code_max,
    ewram_code_min, ewram_code_max);*/
 
+  bool smc = false;
+  u8 *translation_cache_limit = &ram_translation_cache[
+       RAM_TRANSLATION_CACHE_SIZE - TRANSLATION_CACHE_LIMIT_THRESHOLD
+       - (0x10000 - ram_block_tag) / 2 * sizeof(ramtag_type)];
+
+  if(ram_translation_ptr < translation_cache_limit) {
+    // if the translation_ptr is under the limit then assume we're being
+    // called due to smc
+    smc = true;
+  }
+  
+  // ToDo: Currently using a horrible hack to get r0, which contains the address
+  // written to by the Store instruction.  Need to find out how to 
+  // do this properly and cross-platform.  I don't think the MIPS and ARM64 
+  // register names are correct, either.
+  #if defined(MIPS_ARCH)
+    register u32 x asm("%r0");
+  #elif defined(ARM_ARCH)
+    register u32 x asm("%r0");
+  #elif defined(ARM64_ARCH)
+    register u32 x asm("%r0");
+  #else
+    register u32 x asm("%eax");
+  #endif
+  
+  u8 y = 0;
+  // Align the address to ARM instruction interval and set to previous instruction
+  u32 translation_gate_dyn = (((0x3000000 + (x & 0x7FFF)) & ~0x03) - 4);
+ 
+  if(smc == true) {
+    /* printf("ram flush %d (pc %x), %x to %x, %x to %x. smc address - %x \n",
+    flush_ram_count, reg[REG_PC], iwram_code_min, iwram_code_max,
+    ewram_code_min, ewram_code_max, translation_gate_dyn); */
+    
+    // Check if the SMC address already appears in our Translation Gate list
+    for(y= 0; y < translation_gate_targets; y++) {
+        //printf("translation gate proposed entry : %x \n", translation_gate_dyn);
+        if(translation_gate_target_pc[y] == translation_gate_dyn)
+            smc = false;
+    }
+    
+    // If it doesn't exist, smc will still be true, so add it
+    // Calculation is register 0 & 0x7fff (to get the SMC offset) aligned to ARM and deduct 4 to get the prior address 
+    if(smc == true) {
+        translation_gate_target_pc[translation_gate_targets] = translation_gate_dyn;
+        //printf("translation gate entry address: %x, translation gate entry number: %x \n", translation_gate_dyn , translation_gate_targets);
+        
+        if(translation_gate_targets == MAX_TRANSLATION_GATES) {
+          // This is a circular array, so let's set it back to 3 so that we overwrite the oldest entries
+          // except for the ones specified in gba_over (ToDo: need to actually determine how many are specified)
+          translation_gate_targets = 3;
+        } else {
+          translation_gate_targets++;
+        }
+    } 
+  }
+
   last_ram_translation_ptr = ram_translation_cache;
   ram_translation_ptr = ram_translation_cache;
 
