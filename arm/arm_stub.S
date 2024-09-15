@@ -512,6 +512,10 @@ ext_store_iwram_u##store_type:                                               ;\
   save_flags()                                                               ;\
   mask_addr_##store_type(15)              /* Mask to mirror memory (+align)*/;\
   add r2, reg_base, #(IWRAM_OFF+0x8000)   /* r2 = iwram base               */;\
+  load_op r2, [r0, r2]									                                     ;\
+  cmp r2, r1										                                             ;\
+  beq restore_and_return							                                       ;\
+  add r2, reg_base, #(IWRAM_OFF+0x8000)   /* r2 = iwram base               */;\
   str_op r1, [r0, r2]                     /* store data                    */;\
   sub r2, r2, #0x8000                     /* r2 = iwram smc base           */;\
   load_op r1, [r0, r2]                    /* r1 = SMC sentinel             */;\
@@ -523,6 +527,10 @@ ext_store_iwram_u##store_type:                                               ;\
 ext_store_ewram_u##store_type:                                               ;\
   save_flags()                                                               ;\
   mask_addr_##store_type(18)              /* Mask to mirror memory (+align)*/;\
+  add r2, reg_base, #EWRAM_OFF            /* r2 = ewram base               */;\
+  load_op r2, [r0, r2]									                                     ;\
+  cmp r2, r1										                                             ;\
+  beq restore_and_return							                                       ;\
   add r2, reg_base, #EWRAM_OFF            /* r2 = ewram base               */;\
   str_op r1, [r0, r2]                     /* store data                    */;\
   add r2, r2, #0x40000                    /* r2 = ewram smc base           */;\
@@ -556,6 +564,10 @@ ext_store_oam_ram_u##store_type:                                             ;\
   str r0, [reg_base, #REG_PC]             /* write out PC                  */;\
   call_c_function(flush_translation_cache_ram)                               ;\
   b resume_pc                             /* continue execution            */;\
+
+restore_and_return:
+  restore_flags()                                                            ;\
+  add pc, lr, #4                          /* return                        */;\
 
 @ for ignored areas, just return
 ext_store_ignore:
