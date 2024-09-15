@@ -1,4 +1,4 @@
-  1/* gameplaySP
+/* gameplaySP
  *
  * Copyright (C) 2006 Exophase <exophase@gmail.com>
  *
